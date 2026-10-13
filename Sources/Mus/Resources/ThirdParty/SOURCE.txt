@@ -1,0 +1,5 @@
+Lucide mouse icon
+https://github.com/lucide-icons/lucide/blob/dab294f313897bacaa968b725b3259fa37c17bd1/icons/mouse.svg
+License: ISC; see Lucide-LICENSE.txt
+Retrieved: 2026-10-14
+Mus adapts the SVG to an application icon: white strokes on a dark green rounded background.

@@ -1,0 +1,7 @@
+# 小鼠 Logo 剪影版
+
+2026-10-14，使用内置 image_gen，基于 Mus-Mouse.png 转换。保留原 logo 的姿态和绿色底板，将小鼠改为黑色剪影。PNG 和 ICNS 保存为 Mus-Mouse-Silhouette，未替换当前应用图标。
+
+## 提示词
+
+Use case: style-transfer. Edit target: the attached existing Mus mouse app logo. Convert ONLY the rendered brown mouse into a flat pure black animal silhouette. CRITICAL: preserve this exact mouse's existing pose, position, scale, left-facing three-quarter profile, plump rounded back, two upright oval ears, pointed nose, short feet in their original locations, and long tail curling down around the bottom-right. Trace and smoothly simplify its existing outer contour; do not draw a different mouse, do not change pose. Fill entire mouse including ears, feet, belly, whiskers and tail uniformly opaque black, with no fur, shading, brown, pink, highlights, or internal 3D features. A single tiny background-colored negative-space eye is allowed for readability, and minimal thin negative space separating overlapping feet. Simplify fine whiskers to two clean short strokes or omit. Preserve the original teal green rounded-square tile, its dimensions, rounded corners and original subtle tonal background. Preserve transparent outer margins outside tile; clean any stray pixels outside the rounded tile. Final result should be the same logo with a bold simple black silhouette replacing the realistic animal. No text, extra objects, new badges, grids or watermark. One square application icon.
