@@ -4,6 +4,8 @@
 
 # Mus
 
+**简体中文** | [English](README.en.md)
+
 **轻一点，刚刚好。**
 
 **Mus 是 Logi Options+ 的轻量简化替代工具，目前仅支持 MX Anywhere 3S。**
