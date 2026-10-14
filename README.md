@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Resources/IconVariants/Mus-Mouse-Template.png" width="128" alt="Mus 小鼠剪影 logo">
+</p>
+
 # Mus
 
 **轻一点，刚刚好。**
