@@ -6,8 +6,6 @@
 
 **简体中文** | [English](README.en.md)
 
-**轻一点，刚刚好。**
-
 **Mus 是 Logi Options+ 的轻量简化替代工具，目前仅支持 MX Anywhere 3S。**
 
 常驻 macOS 菜单栏，专注侧键快捷操作、滚动方向和滚轮手感。
@@ -16,7 +14,7 @@
 
 [快速开始](#快速开始) · [使用指南](#使用指南) · [常见问题](#常见问题) · [参与贡献](#参与贡献)
 
-![Mus v0.1.1 设置窗口，左侧显示 MX Anywhere 3S，右侧可设置前后侧键动作](docs/screenshots/settings-zh-Hans.png)
+![Mus v0.1.3 设置窗口，左侧显示 MX Anywhere 3S 的设备 ID 和开关，右侧显示监听状态及前后侧键设置](docs/screenshots/settings-zh-Hans.png)
 
 ## 为什么是 Mus？
 

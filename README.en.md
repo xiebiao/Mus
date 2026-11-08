@@ -6,8 +6,6 @@
 
 [简体中文](README.md) | **English**
 
-**Small app. Better control.**
-
 **Mus is a lightweight, simplified alternative to Logi Options+. It currently supports only the MX Anywhere 3S.**
 
 A native macOS menu bar utility for side-button shortcuts, scroll direction, and wheel tuning.
@@ -16,7 +14,7 @@ Swift / SwiftUI · macOS 14+ · Simplified Chinese / English · MIT
 
 [Quick start](#quick-start) · [Usage](#usage) · [FAQ](#faq) · [Contributing](#contributing)
 
-![Mus v0.1.1 settings with the MX Anywhere 3S and its front and rear button mappings](docs/screenshots/settings-en.png)
+![Mus v0.1.3 settings showing the MX Anywhere 3S device ID and toggle in the sidebar, with monitoring status and side button mappings on the right](docs/screenshots/settings-en.png)
 
 ## Why Mus?
 
