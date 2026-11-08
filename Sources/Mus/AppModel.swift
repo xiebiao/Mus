@@ -4,6 +4,15 @@ import Observation
 import ServiceManagement
 import MouseCore
 
+enum MonitoringStatus: String {
+    case waitingForPermission = "等待辅助功能权限"
+    case stopped = "监听尚未启动"
+    case running = "正在运行"
+    case paused = "已暂停"
+
+    var title: String { L10n.text(rawValue) }
+}
+
 @Observable
 final class AppModel {
     var language: AppLanguage {
@@ -15,15 +24,107 @@ final class AppModel {
             onChange?()
         }
     }
+    private var legacySettings: MouseSettings
+    private var profiles: [String: MouseSettings] = [:]
+    private var ambiguousKeys: Set<String>
+    private(set) var mice: [MouseDevice] = []
+    private(set) var selectedID: UInt64?
+    private var preferredKey: String?
+    private(set) var allPaused: Bool
+
+    var selectedMouse: MouseDevice? { mice.first { $0.id == selectedID } }
+
+    private func profileKey(_ mouse: MouseDevice) -> String {
+        if let key = mouse.persistentKey, !ambiguousKeys.contains(key) { return key }
+        return "session-" + String(mouse.id, radix: 16)
+    }
+
+    func displayID(_ mouse: MouseDevice) -> String {
+        let key = profileKey(mouse)
+        if key.hasPrefix("session-") { return "S-" + String(mouse.id, radix: 16).uppercased() }
+        var length = 6
+        while length < key.count && mice.contains(where: { $0.id != mouse.id && profileKey($0).prefix(length) == key.prefix(length) }) {
+            length += 1
+        }
+        return key.prefix(length).uppercased()
+    }
+
     var settings: MouseSettings {
-        didSet {
-            guard settings.isValid else { settings = oldValue; return }
-            if let data = try? JSONEncoder().encode(settings) { defaults.set(data, forKey: "mouseSettings.v1") }
-            service.updateSettings(settings)
+        get { selectedMouse.flatMap { profiles[profileKey($0)] } ?? legacySettings }
+        set {
+            guard newValue.isValid else { return }
+            if let mouse = selectedMouse {
+                let key = profileKey(mouse)
+                profiles[key] = newValue
+                if !key.hasPrefix("session-") {
+                    defaults.set(try? JSONEncoder().encode(newValue), forKey: "mouse.profile." + key)
+                }
+            } else {
+                // Legacy imports and callers without a selected device edit the initial template.
+                legacySettings = newValue
+                defaults.set(try? JSONEncoder().encode(newValue), forKey: "mouseSettings.v1")
+            }
+            if !newValue.enabled { cancelLearning() }
+            configureDevices()
             onChange?()
         }
     }
-    var mice: [MouseDevice] = []
+
+    func selectMouse(_ id: UInt64) {
+        guard let mouse = mice.first(where: { $0.id == id && !$0.isReceiver }) else { return }
+        if selectedID != id { cancelLearning(); learnedButton = nil; notice = nil }
+        selectedID = id
+        preferredKey = profileKey(mouse)
+        if mouse.persistentKey == preferredKey { defaults.set(preferredKey, forKey: "selectedMouseProfile") }
+    }
+
+    func updateDevices(_ devices: [MouseDevice]) {
+        let configurable = devices.filter { !$0.isReceiver }
+        let groups = Dictionary(grouping: configurable.compactMap(\.persistentKey), by: { $0 })
+        let collisions = groups.filter { $0.value.count > 1 }.keys
+        if !ambiguousKeys.isSuperset(of: collisions) {
+            for mouse in mice {
+                let key = profileKey(mouse)
+                if collisions.contains(key), configurable.contains(where: { $0.id == mouse.id }) {
+                    profiles["session-" + String(mouse.id, radix: 16)] = profiles[key]
+                }
+            }
+            ambiguousKeys.formUnion(collisions)
+            defaults.set(Array(ambiguousKeys), forKey: "ambiguousMouseProfiles")
+        }
+        mice = devices
+        for mouse in configurable {
+            let key = profileKey(mouse)
+            if profiles[key] == nil, let data = defaults.data(forKey: "mouse.profile." + key),
+               let saved = try? JSONDecoder().decode(MouseSettings.self, from: data), saved.isValid {
+                profiles[key] = saved
+            }
+        }
+        let next = configurable.first { profileKey($0) == preferredKey } ??
+            configurable.first { $0.id == selectedID } ?? configurable.first
+        if next?.id != selectedID { cancelLearning(); learnedButton = nil; notice = nil }
+        selectedID = next?.id
+        configureDevices()
+        onChange?()
+    }
+
+    private func configureDevices() {
+        var effective: [UInt64: MouseSettings] = [:]
+        for mouse in mice where !mouse.isReceiver {
+            var value = profiles[profileKey(mouse)] ?? legacySettings
+            if allPaused { value.enabled = false }
+            effective[mouse.id] = value
+        }
+        service.updateSettings(effective)
+    }
+
+    func togglePauseAll() {
+        cancelLearning()
+        allPaused.toggle()
+        defaults.set(allPaused, forKey: "allMicePaused")
+        configureDevices()
+        onChange?()
+    }
     @ObservationIgnored private let deviceMonitor = MouseDeviceMonitor()
     private(set) var hasPermission = false
     private(set) var waitingForPermission = false
@@ -38,20 +139,24 @@ final class AppModel {
         return L10n.format("已识别 %@ · 按键 %lld", learnedButton.rear ? L10n.text("后侧键") : L10n.text("前侧键"), learnedButton.number)
     }
     @ObservationIgnored var onChange: (() -> Void)?
-    @ObservationIgnored private let service = EventTapService()
+    @ObservationIgnored private let service: EventTapService
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var learningTimer: Timer?
 
     @ObservationIgnored private var permissionTimer: Timer?
 
-    var status: String {
-        if !hasPermission { return L10n.text("等待辅助功能权限") }
-        if !running { return L10n.text("监听尚未启动") }
-        return settings.enabled ? L10n.text("正在运行") : L10n.text("已暂停")
+    var monitoringStatus: MonitoringStatus {
+        if !hasPermission { return .waitingForPermission }
+        if !running { return .stopped }
+        return allPaused ? .paused : .running
     }
 
-    init(defaults: UserDefaults = .standard, legacyDefaults: [UserDefaults]? = nil) {
+    init(defaults: UserDefaults = .standard, legacyDefaults: [UserDefaults]? = nil, service: EventTapService = EventTapService()) {
+        self.service = service
         self.defaults = defaults
+        allPaused = defaults.bool(forKey: "allMicePaused")
+        preferredKey = defaults.string(forKey: "selectedMouseProfile")
+        ambiguousKeys = Set(defaults.stringArray(forKey: "ambiguousMouseProfiles") ?? [])
         // Prefer the latest app identity, and never overwrite settings already saved by Mus.
         // Isolated test/preview defaults do not read the user's real preferences.
         let previous = legacyDefaults ?? (defaults === UserDefaults.standard
@@ -76,15 +181,17 @@ final class AppModel {
         L10n.language = savedLanguage
         if let data = defaults.data(forKey: "mouseSettings.v1"),
            let saved = try? JSONDecoder().decode(MouseSettings.self, from: data), saved.isValid {
-            settings = saved
+            legacySettings = saved
         } else {
-            settings = MouseSettings()
+            legacySettings = MouseSettings()
             if defaults.data(forKey: "mouseSettings.v1") != nil {
                 notice = L10n.text("保存的设置无法读取，已使用默认值。")
             }
         }
-        service.updateSettings(settings)
-        service.onButton = { [weak self] button in self?.learned(button) }
+        service.onButton = { [weak self] id, button in
+            guard self?.selectedID == id else { return }
+            self?.learned(button)
+        }
         service.onStatus = { [weak self] message in
             self?.notice = message
             self?.running = self?.service.isRunning ?? false
@@ -94,7 +201,7 @@ final class AppModel {
 
     func refresh() {
         deviceMonitor.onChange = { [weak self] devices in
-            if self?.mice != devices { self?.mice = devices }
+            if self?.mice != devices { self?.updateDevices(devices) }
         }
         deviceMonitor.start()
         updatePermission(AXIsProcessTrusted())
@@ -153,10 +260,11 @@ final class AppModel {
     }
 
     func learn(rear: Bool) {
+        guard selectedID != nil, !allPaused, settings.enabled else { return }
         guard running else { notice = L10n.text("请先授予辅助功能权限并启动监听。"); return }
         cancelLearning()
         learningRear = rear
-        service.learning = true
+        service.learningDevice = selectedID
         learningTimer = Timer.scheduledTimer(withTimeInterval: 12, repeats: false) { [weak self] _ in
             self?.cancelLearning()
             self?.notice = L10n.text("未收到侧键事件。请确认鼠标已连接，并退出其他鼠标映射工具。")
@@ -167,7 +275,7 @@ final class AppModel {
         learningTimer?.invalidate()
         learningTimer = nil
         learningRear = nil
-        service.learning = false
+        service.learningDevice = nil
     }
 
     private func learned(_ button: Int64) {
@@ -187,7 +295,12 @@ final class AppModel {
     }
 
     func suspend() { stopPermissionChecks(); deviceMonitor.stop(); cancelLearning(); service.stop(); running = false; onChange?() }
-    func resetSettings() { cancelLearning(); settings = MouseSettings(); notice = L10n.text("已恢复默认设置。") }
+    func resetSettings() {
+        guard selectedMouse != nil else { return }
+        cancelLearning()
+        settings = MouseSettings()
+        notice = L10n.text("已恢复默认设置。")
+    }
 
     func copyDiagnostics() {
         let report = """
@@ -202,7 +315,9 @@ final class AppModel {
         Rear / front button: \(settings.rear.button) / \(settings.front.button)
         Actions: \(settings.rear.action.rawValue) / \(settings.front.action.rawValue)
         Login: \(SMAppService.mainApp.status.rawValue)
-        Scope: all standard mouse side-button and discrete wheel events
+        Scope: per-device side buttons and discrete wheel events
+        Device ID: \(selectedMouse.map(displayID) ?? "—")
+        All paused: \(allPaused)
         """
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(report, forType: .string)

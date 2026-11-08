@@ -48,8 +48,13 @@ struct SettingsView: View {
                                 .accessibilityLabel(L10n.text("关闭提示"))
                         }.padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
                     }
-                    if page == 0 { mouseSettings }
-                    else { usageSettings }
+                    if page == 0 {
+                        if let mouse = model.selectedMouse {
+                            mouseSettings.id(mouse.id)
+                        } else {
+                            Text(L10n.text("连接鼠标后即可设置侧键和滚轮。")).foregroundStyle(.secondary)
+                        }
+                    } else { usageSettings }
                 }.padding(28)
             }
             .background(SettingsPalette.surface)
@@ -65,7 +70,7 @@ struct SettingsView: View {
         .alert(L10n.text("恢复默认设置？"), isPresented: $showReset) {
             Button(L10n.text("取消"), role: .cancel) {}
             Button(L10n.text("恢复")) { model.resetSettings() }
-        } message: { Text(L10n.text("侧键恢复为后退与前进，滚动方向跟随系统。开机启动设置不变。")) }
+        } message: { Text(L10n.text("当前鼠标的侧键将恢复为后退与前进，滚动方向将跟随系统。")) }
     }
 
     private var sidebar: some View {
@@ -76,63 +81,98 @@ struct SettingsView: View {
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36).accessibilityHidden(true)
                 Text("Mus").font(.headline)
+                Text(verbatim: "v" + AppResources.version)
+                    .font(.caption2).foregroundStyle(SettingsPalette.onSurfaceVariant)
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, 16).padding(.top, 4)
+            ViewThatFits(in: .vertical) {
+                sidebarDevices.fixedSize(horizontal: false, vertical: true)
+                ScrollView { sidebarDevices }
+                    .scrollBounceBehavior(.basedOnSize)
+            }
+            .padding(.bottom, 12)
             navItem(L10n.text("鼠标设置"), icon: .tune, index: 0)
             navItem(L10n.text("使用与权限"), icon: .permissions, index: 1)
-            sidebarDevices
-                .padding(.top, 12)
-            Text(verbatim: "v" + AppResources.version)
-                .font(.caption2).foregroundStyle(SettingsPalette.onSurfaceVariant)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.top, 3)
+            Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                Image(systemName: "globe")
+                    .foregroundStyle(SettingsPalette.onSurfaceVariant)
+                    .accessibilityHidden(true)
+                Picker(L10n.text("界面语言"), selection: $model.language) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                .labelsHidden().pickerStyle(.menu).controlSize(.small)
+                .accessibilityLabel(L10n.text("界面语言"))
+            }
+            .help(L10n.text("界面语言"))
         }.padding(16).frame(width: 198)
             .frame(maxHeight: .infinity).background(SettingsPalette.surfaceContainer)
     }
 
     private var sidebarDevices: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                if model.mice.isEmpty {
-                    MaterialSymbol.mouse.label(L10n.text("未检测到鼠标"))
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-                ForEach(model.mice) { mouse in
-                    VStack(spacing: 8) {
-                        if mouse.isMXAnywhere3S {
-                            MouseProductImage(learningRear: model.learningRear, highlightColor: Color(red: 0.34, green: 0.33, blue: 0.64))
-                                .padding(8)
-                                .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: 18))
-                                .accessibilityHidden(true)
-                        } else {
-                            MaterialSymbol.mouse.icon(42)
-                                .foregroundStyle(.secondary).accessibilityHidden(true)
-                        }
-                        Text(mouse.title).font(.headline)
-                        Text("\(mouse.brand) · \(mouse.connection)")
-                            .font(.caption).foregroundStyle(.secondary)
-                        MaterialSymbol.connected.label(L10n.text(mouse.isReceiver ? "已检测到接收器" : "已连接"), size: 14)
-                            .font(.caption.weight(.semibold)).foregroundStyle(SettingsPalette.onPrimaryContainer)
-                            .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(SettingsPalette.primaryContainer, in: Capsule())
-                        if mouse.isReceiver {
-                            Text(L10n.text("接收器未提供所连接鼠标的具体型号。"))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .multilineTextAlignment(.center)
-                    .padding(10).frame(maxWidth: .infinity)
-                    .settingsCard()
-                }
-                Toggle(L10n.text("侧键与滚轮"), isOn: $model.settings.enabled)
-                    .toggleStyle(.switch).controlSize(.small).font(.callout)
-                    .fixedSize()
-                    .help(L10n.text("暂停后恢复系统鼠标行为"))
+        VStack(spacing: 12) {
+            if model.mice.isEmpty {
+                MaterialSymbol.mouse.label(L10n.text("未检测到鼠标"))
+                    .font(.callout).foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity)
+            ForEach(model.mice) { mouse in
+                deviceCard(mouse)
+            }
+        }.frame(maxWidth: .infinity)
+    }
+
+    private func deviceCard(_ mouse: MouseDevice) -> some View {
+        let selected = mouse.id == model.selectedID
+        let compact = model.mice.count > 1
+        return VStack(spacing: 8) {
+            Button {
+                model.selectMouse(mouse.id)
+                page = 0
+            } label: {
+                VStack(spacing: 5) {
+                    if mouse.isMXAnywhere3S {
+                        MouseProductImage(learningRear: selected ? model.learningRear : nil,
+                                          highlightColor: SettingsPalette.primary)
+                            .scaleEffect(compact ? 0.36 : 1)
+                            .frame(width: compact ? 44 : 120, height: compact ? 56 : 155)
+                            .padding(compact ? 4 : 8)
+                            .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: compact ? 8 : 18))
+                            .accessibilityHidden(true)
+                    } else {
+                        MaterialSymbol.mouse.icon(32).foregroundStyle(.secondary).accessibilityHidden(true)
+                    }
+                    Text(mouse.title).font(.headline)
+                    Text(L10n.format(mouse.isReceiver ? "接收器 ID：%@" : "设备 ID：%@", model.displayID(mouse)))
+                        .font(.caption.monospaced()).foregroundStyle(SettingsPalette.onSurfaceVariant)
+                    Text("\(mouse.brand) · \(mouse.connection)").font(.caption).foregroundStyle(.secondary)
+                    MaterialSymbol.connected.label(L10n.text(mouse.isReceiver ? "已检测到接收器" : "已连接"), size: 14)
+                        .font(.caption.weight(.semibold)).foregroundStyle(SettingsPalette.onPrimaryContainer)
+                        .padding(.horizontal, 10).padding(.vertical, 3)
+                        .background(SettingsPalette.primaryContainer, in: Capsule())
+                }.frame(maxWidth: .infinity).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(mouse.isReceiver)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            if selected {
+                Toggle(L10n.text("侧键与滚轮"), isOn: $model.settings.enabled)
+                    .toggleStyle(.switch).controlSize(.small).font(.callout).fixedSize()
+            } else if mouse.isReceiver {
+                Text(L10n.text("接收器未提供所连接鼠标的具体型号。")).font(.caption).foregroundStyle(.secondary)
+            }
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .multilineTextAlignment(.center)
+        .padding(10).frame(maxWidth: .infinity)
+        .settingsCard()
+        .overlay {
+            if selected {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(SettingsPalette.primary, lineWidth: 1.5).allowsHitTesting(false)
+            }
+        }
     }
 
     private func navItem(_ title: String, icon: MaterialSymbol, index: Int) -> some View {
@@ -148,8 +188,11 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.text(page == 0 ? "鼠标设置" : "使用与权限"))
                 .font(.system(size: 28, weight: .medium))
-            Label(L10n.format("事件监听：%@", model.status), systemImage: model.running && model.settings.enabled ? "circle.fill" : "circle")
-                .font(.caption).foregroundStyle(.secondary)
+            if page == 0, let mouse = model.selectedMouse {
+                Text("\(mouse.title) · \(L10n.format("设备 ID：%@", model.displayID(mouse)))")
+                    .font(.callout).foregroundStyle(SettingsPalette.onSurfaceVariant)
+            }
+            MonitoringStatusIndicator(status: model.monitoringStatus)
         }
     }
 
@@ -195,6 +238,7 @@ struct SettingsView: View {
                 tabButton(.sideButtons, title: L10n.text("侧键"))
                 tabButton(.scroll, title: L10n.text("滚轮调节"))
                 Spacer(minLength: 0)
+
             }
             .background(alignment: .bottom) { Divider() }
             .onChange(of: mouseTab) { _, _ in model.cancelLearning() }
@@ -204,8 +248,7 @@ struct SettingsView: View {
             case .scroll: scrollSettings
             }
 
-            Text(L10n.text("作用范围：所有鼠标的对应侧键与普通滚轮。触控板连续滚动保持不变。"))
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+
         }
     }
 
@@ -311,7 +354,7 @@ struct SettingsView: View {
                     .accessibilityHidden(true)
                 Spacer()
                 Button(L10n.text(model.learningRear == rear ? "识别中…" : "识别")) { model.learn(rear: rear) }
-                    .disabled(!model.running).controlSize(.small)
+                    .disabled(!model.running || model.allPaused || !model.settings.enabled).controlSize(.small)
                     .help(L10n.text("按下对应侧键，识别实际按键编号"))
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -337,14 +380,6 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
             GroupBox(L10n.text("运行设置")) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Picker(L10n.text("界面语言"), selection: $model.language) {
-                        ForEach(AppLanguage.allCases) { language in
-                            Text(language.title).tag(language)
-                        }
-                    }
-                    Text(L10n.text("立即生效，无需重启。"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Divider()
                     Toggle(L10n.text("登录 Mac 时启动"), isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
                         .toggleStyle(.switch)
                     if model.loginNeedsApproval {
@@ -356,7 +391,7 @@ struct SettingsView: View {
             }
             GroupBox(L10n.text("首次使用")) {
                 VStack(alignment: .leading, spacing: 14) {
-                    instruction("1", L10n.text("保持鼠标连接"), L10n.text("蓝牙或 Bolt 接收器均可，不需要重新配对。"))
+                    instruction("1", L10n.text("保持鼠标连接"), L10n.text("连接鼠标，然后在左侧选择对应的设备 ID。"))
                     if model.hasPermission {
                         MaterialSymbol.connected.label(L10n.text("辅助功能权限已开启"))
                             .font(.callout).foregroundStyle(SettingsPalette.primary)
@@ -367,15 +402,15 @@ struct SettingsView: View {
                     instruction("4", L10n.text("测试并选择操作"), L10n.text("在浏览器中测试前进和后退；在页面上滚动，确认方向。系统快捷键以你在 macOS 中的配置为准。"))
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
             }
-            GroupBox(L10n.text("第一版的范围")) {
-                Text(L10n.text("此版本使用 macOS 标准鼠标事件，不识别特定鼠标连接状态，也不读取电量或修改 DPI、SmartShift。侧键映射同样适用于其他鼠标。前进／后退使用 ⌘[ / ⌘]，可按应用需要改为自定义快捷键。\n\n仅保存你的设置；无网络请求、无使用统计，不记录键盘输入。设置不会写入鼠标，退出应用后恢复原始行为。"))
+            GroupBox(L10n.text("支持范围")) {
+                Text(L10n.text("Mus 根据输入事件的设备来源应用设置。系统只报告接收器或无法识别来源时，侧键和滚轮沿用系统行为。"))
                     .font(.callout).foregroundStyle(.secondary).lineSpacing(4).padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
                 Button(L10n.text("复制诊断信息")) { model.copyDiagnostics() }
                 Spacer()
-                Button(L10n.text("恢复默认…")) { showReset = true }
+                Button(L10n.text("恢复默认…")) { showReset = true }.disabled(model.selectedMouse == nil)
             }
         }
     }

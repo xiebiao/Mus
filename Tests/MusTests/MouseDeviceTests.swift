@@ -21,6 +21,17 @@ final class MouseDeviceTests: XCTestCase {
         XCTAssertFalse(mouse.isReceiver)
     }
 
+    func testNonLogitechBluetoothMouseIsListedUsingReportedMetadata() throws {
+        L10n.language = .english
+        let mouse = try XCTUnwrap(device([kIOHIDVendorIDKey: 0x045e, kIOHIDManufacturerKey: "Microsoft",
+                                         kIOHIDProductKey: "Bluetooth Mouse"]))
+        XCTAssertEqual(mouse.brand, "Microsoft")
+        XCTAssertEqual(mouse.title, "Bluetooth Mouse")
+        XCTAssertEqual(mouse.connection, "Bluetooth")
+        XCTAssertFalse(mouse.isReceiver)
+        XCTAssertFalse(mouse.isMXAnywhere3S)
+    }
+
     func testRejectsKeyboardMouseCollectionsAndTrackpads() {
         XCTAssertNil(device([kIOHIDPrimaryUsageKey: 6, kIOHIDProductKey: "Keychron K3 Max"]))
         XCTAssertNil(device([kIOHIDProductKey: "Magic Trackpad"]))

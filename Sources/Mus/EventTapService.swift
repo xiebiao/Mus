@@ -3,15 +3,22 @@ import ApplicationServices
 import MouseCore
 
 final class EventTapService {
-    let processor = EventProcessor()
+    private let router = MouseEventRouter()
+    private var scrollingDevice: UInt64?
     private let scrolling = ScrollService()
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
-    private var capturedButtons: Set<Int64> = []
-    var learning = false
-    var onButton: ((Int64) -> Void)?
+    private var capturedButtons: [UInt64: Set<Int64>] = [:]
+    var learningDevice: UInt64?
+    var onButton: ((UInt64, Int64) -> Void)?
     var onStatus: ((String) -> Void)?
     var isRunning: Bool { tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false }
+
+    private let postShortcut: (Shortcut) -> Void
+
+    init(postShortcut: @escaping (Shortcut) -> Void = EventTapService.send) {
+        self.postShortcut = postShortcut
+    }
 
     func start() -> Bool {
         if let tap, CFMachPortIsValid(tap) {
@@ -44,17 +51,19 @@ final class EventTapService {
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         source = nil
         tap = nil
-        processor.reset()
+        router.reset()
+        scrollingDevice = nil
         capturedButtons.removeAll()
-        learning = false
+        learningDevice = nil
     }
 
-    func updateSettings(_ settings: MouseSettings) {
+    func updateSettings(_ settings: [UInt64: MouseSettings]) {
         scrolling.cancel()
-        processor.settings = settings
+        router.configure(settings)
+        capturedButtons = capturedButtons.filter { settings[$0.key] != nil }
     }
 
-    private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             scrolling.cancel()
             if let tap, AXIsProcessTrusted() { CGEvent.tapEnable(tap: tap, enable: true) }
@@ -73,20 +82,29 @@ final class EventTapService {
                 || !event.flags.intersection([.maskControl, .maskCommand]).isEmpty)) {
             scrolling.cancel()
         }
+        guard type == .otherMouseDown || type == .otherMouseUp || type == .otherMouseDragged || type == .scrollWheel,
+              let (id, processor) = router.source(of: event) else {
+            if type == .scrollWheel { scrolling.cancel() }
+            return Unmanaged.passUnretained(event)
+        }
+        if type == .scrollWheel, scrollingDevice != id {
+            scrolling.cancel()
+            scrollingDevice = id
+        }
         let button = event.getIntegerValueField(.mouseEventButtonNumber)
-        if type == .otherMouseUp, capturedButtons.remove(button) != nil { return nil }
-        if type == .otherMouseDragged, capturedButtons.contains(button) { return nil }
-        if learning, type == .otherMouseDown, (3...31).contains(button) {
-            learning = false
-            capturedButtons.insert(button)
-            DispatchQueue.main.async { [weak self] in self?.onButton?(button) }
+        if type == .otherMouseUp, capturedButtons[id]?.remove(button) != nil { return nil }
+        if type == .otherMouseDragged, capturedButtons[id]?.contains(button) == true { return nil }
+        if learningDevice == id, type == .otherMouseDown, (3...31).contains(button) {
+            learningDevice = nil
+            capturedButtons[id, default: []].insert(button)
+            onButton?(id, button)
             return nil
         }
         switch processor.process(type: type, event: event) {
         case .pass: return Unmanaged.passUnretained(event)
         case .suppress: return nil
         case .shortcut(let shortcut):
-            send(shortcut)
+            postShortcut(shortcut)
             return nil
         case .scroll(let delta):
             scrolling.accept(delta, event: event, settings: processor.settings.scroll)
@@ -94,7 +112,7 @@ final class EventTapService {
         }
     }
 
-    private func send(_ shortcut: Shortcut) {
+    private static func send(_ shortcut: Shortcut) {
         guard let events = ShortcutEvents.make(for: shortcut) else { return }
         for event in events {
             event.post(tap: .cgSessionEventTap)

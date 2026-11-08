@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import IOKit.hid
 
 struct MouseDevice: Equatable, Identifiable {
@@ -8,6 +9,8 @@ struct MouseDevice: Equatable, Identifiable {
     let vendorID: Int
     let productID: Int
     let transport: String
+    var persistentKey: String?
+
 
     // Some keyboards advertise a mouse collection for macros. Do not present them as mice.
     static func make(id: UInt64, properties: [String: Any]) -> MouseDevice? {
@@ -17,11 +20,22 @@ struct MouseDevice: Equatable, Identifiable {
               (properties[kIOHIDPrimaryUsageKey] as? NSNumber)?.intValue == 2,
               !lower.contains("trackpad"), !lower.contains("touchpad"),
               (properties["Built-In"] as? NSNumber)?.boolValue != true else { return nil }
-        return MouseDevice(id: id, product: name,
+        var device = MouseDevice(id: id, product: name,
                            manufacturer: (properties[kIOHIDManufacturerKey] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                            vendorID: (properties[kIOHIDVendorIDKey] as? NSNumber)?.intValue ?? 0,
                            productID: (properties[kIOHIDProductIDKey] as? NSNumber)?.intValue ?? 0,
                            transport: properties[kIOHIDTransportKey] as? String ?? "")
+        // Registry IDs identify a live connection. Store only a digest of the
+        // hardware identity for reconnects; a model name cannot distinguish twins.
+        let identifiers = [kIOHIDSerialNumberKey, kIOHIDPhysicalDeviceUniqueIDKey].compactMap {
+            (properties[$0] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty && !$0.allSatisfy { $0 == "0" } }
+        if !identifiers.isEmpty {
+            let parts = [String(device.vendorID), String(device.productID), device.transport] + identifiers
+            device.persistentKey = SHA256.hash(data: Data(parts.joined(separator: "\u{0}").utf8))
+                .map { String(format: "%02x", $0) }.joined()
+        }
+        return device
     }
 
     var brand: String {
@@ -47,7 +61,7 @@ struct MouseDevice: Equatable, Identifiable {
     }
 }
 
-/// Passive device discovery only: no device open, input reports, serial numbers, or Bluetooth addresses.
+/// Passive discovery; identifiers are hashed locally and never included in diagnostics.
 final class MouseDeviceMonitor {
     var onChange: (([MouseDevice]) -> Void)?
     private var manager: IOHIDManager?
@@ -75,7 +89,7 @@ final class MouseDeviceMonitor {
         let devices = (IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> ?? []).compactMap { device -> MouseDevice? in
             var properties: [String: Any] = [:]
             for key in [kIOHIDProductKey, kIOHIDManufacturerKey, kIOHIDVendorIDKey, kIOHIDProductIDKey, kIOHIDTransportKey,
-                        kIOHIDPrimaryUsagePageKey, kIOHIDPrimaryUsageKey, "Built-In"] {
+                        kIOHIDPrimaryUsagePageKey, kIOHIDPrimaryUsageKey, kIOHIDSerialNumberKey, kIOHIDPhysicalDeviceUniqueIDKey, "Built-In"] {
                 properties[key] = IOHIDDeviceGetProperty(device, key as CFString)
             }
             var id: UInt64 = 0

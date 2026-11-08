@@ -5,6 +5,7 @@ import CoreGraphics
 final class ScrollTests: XCTestCase {
     private func wheel(x: Int32 = 0, y: Int32 = 1) -> CGEvent {
         let event = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 2, wheel1: y, wheel2: x, wheel3: 0)!
+        event.flags = [] // Synthetic wheel events can inherit the user's current modifier keys.
         // Some devices supply only line deltas; exercise that fallback deterministically.
         event.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: 0)
         event.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: 0)

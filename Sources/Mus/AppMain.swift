@@ -19,7 +19,7 @@ enum MusApp {
             print("Mus \(AppResources.version) | macOS 14+ | \(ProcessInfo.processInfo.operatingSystemVersionString)")
             print("Current process accessibility: \(AXIsProcessTrusted() ? "granted" : "not granted")")
             print("CLI permission may be inherited from the terminal. Check the GUI for the app permission.")
-            print("Standard mouse events; Bluetooth / Bolt transport-independent. No HID++ access.")
+            print("Per-device side button and wheel settings. Receiver-only input uses native behavior.")
             return
         }
         let app = NSApplication.shared
@@ -103,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func toggleEnabled() { model.cancelLearning(); model.settings.enabled.toggle() }
+    @objc private func toggleEnabled() { model.togglePauseAll() }
     @objc private func quit() { NSApp.terminate(nil) }
 
     private func installMainMenu() {
@@ -123,14 +123,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Template rendering follows the menu bar appearance: white on dark, black on light.
         statusItem.button?.image = BrandImages.menuBar
         statusItem.button?.setAccessibilityLabel(L10n.text("Mus 状态栏菜单"))
-        statusItem.button?.toolTip = "Mus · \(model.status)"
+        statusItem.button?.toolTip = "Mus · \(model.monitoringStatus.title)"
         let menu = NSMenu()
-        let status = NSMenuItem(title: "Mus · \(model.status)", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "Mus · \(model.monitoringStatus.title)", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())
         add(L10n.text("偏好设置…"), action: #selector(showSettings), key: ",", to: menu)
-        add(model.settings.enabled ? L10n.text("暂停鼠标设置") : L10n.text("恢复鼠标设置"), action: #selector(toggleEnabled), to: menu)
+        add(model.allPaused ? L10n.text("全部恢复") : L10n.text("全部暂停"), action: #selector(toggleEnabled), to: menu)
         menu.addItem(.separator())
         add(L10n.text("退出 Mus"), action: #selector(quit), key: "q", to: menu)
         statusItem.menu = menu

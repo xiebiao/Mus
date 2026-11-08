@@ -34,7 +34,7 @@ Mus was built for everyday use with the MX Anywhere 3S and works through standar
 - **Two interface languages**: Follow the system language or choose Simplified Chinese or English. Changes take effect immediately.
 - **Local operation**: No network requests, telemetry, input history, or global keyboard monitoring.
 
-> Version 0.1.1 is an early release. Settings affect matching side buttons and standard wheels on all mice; per-device and per-app profiles are not yet supported. Bluetooth device detection has been verified with an MX Anywhere 3S. Its complete input behavior over Logi Bolt still needs hardware testing.
+> Starting with v0.1.2, each mouse has its own side button and wheel settings. On upgrade, each mouse starts with your previous shared settings.
 
 ## Quick start
 
@@ -106,7 +106,8 @@ Device discovery does not require Accessibility access. **Connected and Event mo
 
 ## Compatibility and limitations
 
-- Settings apply to all matching standard mouse events, rather than one specific mouse.
+- Select a device ID in the sidebar to edit that mouse’s buttons and wheel. Connected mice use their individual settings simultaneously.
+- Mice with a unique hardware identifier restore their settings after reconnecting. IDs starting with `S-` identify a single connection. Receiver-only and unattributed input keeps its native behavior.
 - Left, right, and middle clicks are not remapped. A side button triggers once per press; holding or repeating a shortcut is not simulated.
 - DPI, battery level, SmartShift, per-app profiles, and writing settings to onboard memory are not supported yet.
 - Scroll tuning changes software movement, not hardware resolution. Continuous and momentum events are skipped. Custom scroll tuning also preserves native Control/Command + wheel operations.
