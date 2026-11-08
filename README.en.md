@@ -16,6 +16,8 @@ Swift / SwiftUI · macOS 14+ · Simplified Chinese / English · MIT
 
 [Quick start](#quick-start) · [Usage](#usage) · [FAQ](#faq) · [Contributing](#contributing)
 
+![Mus v0.1.1 settings with the MX Anywhere 3S and its front and rear button mappings](docs/screenshots/settings-en.png)
+
 ## Why Mus?
 
 If all you need is side-button mapping and scroll tuning, Mus provides a simple settings window that lives in your menu bar. No account, cloud service, additional driver, or third-party runtime dependency is required. Your settings stay on your Mac.
@@ -32,7 +34,7 @@ Mus was built for everyday use with the MX Anywhere 3S and works through standar
 - **Two interface languages**: Follow the system language or choose Simplified Chinese or English. Changes take effect immediately.
 - **Local operation**: No network requests, telemetry, input history, or global keyboard monitoring.
 
-> Version 0.1.0 is an early release. Settings affect matching side buttons and standard wheels on all mice; per-device and per-app profiles are not yet supported. Bluetooth device detection has been verified with an MX Anywhere 3S. Its complete input behavior over Logi Bolt still needs hardware testing.
+> Version 0.1.1 is an early release. Settings affect matching side buttons and standard wheels on all mice; per-device and per-app profiles are not yet supported. Bluetooth device detection has been verified with an MX Anywhere 3S. Its complete input behavior over Logi Bolt still needs hardware testing.
 
 ## Quick start
 
@@ -55,7 +57,7 @@ Local builds use an ad-hoc signature and are not notarized by Apple.
 
 1. Open Mus and click **Open permission settings**.
 2. Enable Mus in **System Settings → Privacy & Security → Accessibility**. If it is missing, use `+` to add the current app.
-3. Return to Mus, click **Check again**, and confirm **Event monitoring: Running**.
+3. Mus starts monitoring automatically when access is granted. The main window shows **Event monitoring: Running**.
 4. Disable overlapping button mappings or scroll processing in other tools before testing Mus.
 
 Closing the window leaves Mus running in the menu bar. Click the mouse icon to open Preferences, pause, or quit. Launch at login is available under **Setup & permissions**.

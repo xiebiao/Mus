@@ -1,7 +1,5 @@
 "%@操作" = "%@ action";
 "Mus 状态栏菜单" = "Mus menu bar menu";
-"v0.1.0 · macOS 原生应用" = "v0.1.0 · Native for macOS";
-"专注侧键与滚动，设置即时生效。" = "Side buttons and scrolling. Changes apply instantly.";
 "事件监听已恢复；若操作无效，请检查权限。" = "Input monitoring restarted. Check permissions if actions do not work.";
 "以 macOS 当前方向为基准" = "Relative to your current macOS direction";
 "作用范围：所有鼠标的对应侧键与普通滚轮。触控板连续滚动保持不变。" = "Applies to matching side buttons and standard wheels on all mice. Continuous trackpad scrolling is unchanged.";
@@ -19,7 +17,6 @@
 "关闭提示" = "Dismiss notice";
 "关闭标签页  ⌘W" = "Close tab  ⌘W";
 "关闭窗口后保留菜单栏图标。菜单中可随时暂停或退出。" = "Closing this window keeps the menu bar app running. Pause or quit from its menu.";
-"关闭设置窗口，Mus 继续在屏幕顶部状态栏运行" = "Close settings and keep Mus running in the menu bar";
 "前侧键" = "Front button";
 "前进  ⌘]" = "Forward  ⌘]";
 "反转横向滚动" = "Reverse horizontal scrolling";
@@ -29,7 +26,7 @@
 "后侧键" = "Rear button";
 "后退  ⌘[" = "Back  ⌘[";
 "启用" = "Enable";
-"启用鼠标设置" = "Enable mouse settings";
+"侧键与滚轮" = "Buttons & scrolling";
 "在浏览器中测试前进和后退；在页面上滚动，确认方向。系统快捷键以你在 macOS 中的配置为准。" = "Test Back and Forward in a browser, then check the scroll direction. System actions use your macOS keyboard shortcuts.";
 "在系统设置中允许登录项" = "Approve login item in System Settings";
 "复制  ⌘C" = "Copy  ⌘C";
@@ -45,19 +42,16 @@
 "恢复默认…" = "Reset defaults…";
 "恢复默认设置？" = "Reset default settings?";
 "恢复鼠标设置" = "Resume mouse settings";
-"我已开启，重新检查" = "Check again";
 "打开权限设置" = "Open permission settings";
 "把常用操作放在拇指旁" = "Your everyday actions, within reach";
 "按下对应侧键，识别实际按键编号" = "Press the matching side button to identify its button number";
 "按下组合键 · Esc 取消" = "Press shortcut · Esc to cancel";
 "撤销  ⌘Z" = "Undo  ⌘Z";
-"收起到状态栏" = "Hide to menu bar";
 "新建标签页  ⌘T" = "New tab  ⌘T";
 "显示桌面  F11" = "Show desktop  F11";
 "暂停后恢复系统鼠标行为" = "Pause to restore normal mouse behavior";
 "暂停鼠标设置" = "Pause mouse settings";
 "未收到侧键事件。请确认鼠标已连接，并退出其他鼠标映射工具。" = "No side button received. Check the connection and quit other mouse remapping tools.";
-"本机运行 · 无需账户" = "Local · No account needed";
 "权限已开启，但监听未启动。可重新尝试，必要时退出后重开。" = "Permission is granted, but input monitoring is not running. Retry, or quit and reopen the app.";
 "正在运行" = "Running";
 "此版本使用 macOS 标准鼠标事件，不识别特定鼠标连接状态，也不读取电量或修改 DPI、SmartShift。侧键映射同样适用于其他鼠标。前进／后退使用 ⌘[ / ⌘]，可按应用需要改为自定义快捷键。\n\n仅保存你的设置；无网络请求、无使用统计，不记录键盘输入。设置不会写入鼠标，退出应用后恢复原始行为。" = "This version uses standard macOS mouse events. It does not detect individual mouse connections, read battery levels, or change DPI or SmartShift. Side button mappings also apply to other mice. Back and Forward use ⌘[ / ⌘]; choose custom shortcuts if your app needs different keys.\n\nOnly your settings are saved. No network requests, analytics, or keystroke logging. Settings are not written to the mouse; quitting restores its original behavior.";
@@ -65,7 +59,6 @@
 "滚动方向" = "Scroll direction";
 "现在按一下前侧键（12 秒内）…" = "Press the front button within 12 seconds…";
 "现在按一下后侧键（12 秒内）…" = "Press the rear button within 12 seconds…";
-"用于改写鼠标侧键和滚轮事件。打开系统设置，启用 Mus，再回到这里。" = "Required to remap mouse buttons and scrolling. Enable Mus in System Settings, then return here.";
 "界面语言" = "Language";
 "登录 Mac 时启动" = "Launch at login";
 "监听尚未启动" = "Input monitoring is off";
@@ -79,7 +72,6 @@
 "自定义快捷键…" = "Custom shortcut…";
 "蓝牙 / Logi Bolt · 系统事件模式" = "Bluetooth / Logi Bolt · Standard events";
 "蓝牙或 Bolt 接收器均可，不需要重新配对。" = "Use Bluetooth or a Bolt receiver. No pairing changes needed.";
-"让鼠标顺手起来。" = "Make your mouse feel right.";
 "识别" = "Identify";
 "诊断信息已复制，不包含键盘输入或自定义快捷键内容。" = "Diagnostics copied. No keystrokes or custom shortcut contents are included.";
 "请先授予辅助功能权限并启动监听。" = "Allow Accessibility access and start input monitoring first.";
@@ -87,14 +79,12 @@
 "调度中心  ⌃↑" = "Mission Control  ⌃↑";
 "跟随系统" = "System default";
 "跳过触控板和 Magic Mouse 的连续滚动。开启其他软件的平滑滚动后，鼠标反转可能不生效。" = "Continuous trackpad and Magic Mouse scrolling is skipped. Other apps that smooth scrolling may prevent reversal.";
-"轻一点，刚刚好。" = "Small app. Better control.";
 "运行设置" = "General";
 "还差一步：允许辅助功能权限" = "One more step: Accessibility access";
 "退出 Mus" = "Quit Mus";
 "避免重复映射" = "Avoid overlapping mappings";
 "重做  ⇧⌘Z" = "Redo  ⇧⌘Z";
 "重新启动监听" = "Restart monitoring";
-"重新检查权限" = "Check permissions";
 "键 %d" = "Key %d";
 "靠近手腕的一颗" = "Closer to your wrist";
 "靠近鼠标头部的一颗" = "Closer to the front";
@@ -128,10 +118,7 @@
 "未上报型号的鼠标" = "Mouse (model unavailable)";
 "连接方式未知" = "Unknown connection";
 "蓝牙" = "Bluetooth";
-"已检测的鼠标" = "Detected mice";
-"重新检测" = "Refresh devices";
 "未检测到鼠标" = "No mouse detected";
-"请连接鼠标后重新检测。接收器可能无法提供具体型号。" = "Connect a mouse and refresh. Receivers may not report the mouse model.";
 "已检测到接收器" = "Receiver detected";
 "已连接" = "Connected";
 "接收器未提供所连接鼠标的具体型号。" = "The receiver does not report the connected mouse model.";
@@ -141,3 +128,7 @@
 "Logi Bolt 无线接收器" = "Logi Bolt wireless receiver";
 "USB 无线接收器" = "USB wireless receiver";
 "USB（有线或接收器）" = "USB (wired or receiver)";
+"在辅助功能列表中开启 Mus。如果列表中没有 Mus，点“+”添加。授权后会自动开始监听。" = "Enable Mus in the Accessibility list. If Mus is missing, use + to add it. Monitoring starts automatically once access is granted.";
+"返回权限设置" = "Return to permission settings";
+"允许 Mus 使用辅助功能，以调整鼠标侧键和滚动。" = "Allow Accessibility access so Mus can adjust mouse buttons and scrolling.";
+"辅助功能权限已开启" = "Accessibility access granted";

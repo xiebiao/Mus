@@ -26,3 +26,7 @@
 - Mus 修改：白色线条，墨绿色圆角背景；原始鼠标轮廓不变。
 - 历史生成脚本：`scripts/make-icon.swift`，不再由默认构建调用。
 - 这项替换仅涉及应用图标；上文界面产品图片的来源记录仍适用。
+
+## 设置界面图标
+
+设置界面使用 Google Material Symbols Rounded。SVG 图标按 Apache License 2.0 分发，许可文本随应用打包。[上游图标库](https://github.com/google/material-design-icons) · [许可文本](../Sources/Mus/Resources/ThirdParty/MaterialSymbols-LICENSE.txt)

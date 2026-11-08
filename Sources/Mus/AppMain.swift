@@ -16,7 +16,7 @@ enum MusApp {
             return
         }
         if CommandLine.arguments.contains("--self-check") {
-            print("Mus 0.1.0 | macOS 14+ | \(ProcessInfo.processInfo.operatingSystemVersionString)")
+            print("Mus \(AppResources.version) | macOS 14+ | \(ProcessInfo.processInfo.operatingSystemVersionString)")
             print("Current process accessibility: \(AXIsProcessTrusted() ? "granted" : "not granted")")
             print("CLI permission may be inherited from the terminal. Check the GUI for the app permission.")
             print("Standard mouse events; Bluetooth / Bolt transport-independent. No HID++ access.")
@@ -92,10 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             created.title = "Mus"
             created.titlebarAppearsTransparent = true
             created.isReleasedWhenClosed = false
-            created.contentView = NSHostingView(rootView: SettingsView(model: model, onHide: { [weak self] in
-                self?.model.cancelLearning()
-                self?.window?.close()
-            }))
+            created.contentView = NSHostingView(rootView: SettingsView(model: model))
+            observers.append(NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
+                object: created, queue: .main) { [weak self] _ in self?.model.cancelLearning() })
             created.center()
             window = created
         }

@@ -2,12 +2,33 @@ import SwiftUI
 import ServiceManagement
 import MouseCore
 
-private let accent = Color(red: 0.08, green: 0.47, blue: 0.42)
+private extension View {
+    func settingsCard() -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        return background(SettingsPalette.surfaceLow, in: shape)
+            .overlay { shape.strokeBorder(SettingsPalette.outlineVariant.opacity(0.72), lineWidth: 0.75).allowsHitTesting(false) }
+    }
+}
+
+private struct SettingsGroupStyle: GroupBoxStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            configuration.label.font(.headline)
+            configuration.content
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).settingsCard()
+    }
+}
+
+private enum MouseSettingsTab {
+    case sideButtons
+    case scroll
+}
 
 struct SettingsView: View {
     @Bindable var model: AppModel
-    var onHide: () -> Void = {}
     @State private var page = 0
+    @State private var mouseTab = MouseSettingsTab.sideButtons
     @State private var showReset = false
 
     var body: some View {
@@ -21,9 +42,9 @@ struct SettingsView: View {
                     else if !model.running { restartBanner }
                     if let notice = model.notice {
                         HStack(alignment: .top) {
-                            Image(systemName: "info.circle")
+                            MaterialSymbol.info.icon(18)
                             Text(notice).font(.callout).frame(maxWidth: .infinity, alignment: .leading)
-                            Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+                            Button { model.notice = nil } label: { MaterialSymbol.close.icon(16) }.buttonStyle(.plain)
                                 .accessibilityLabel(L10n.text("关闭提示"))
                         }.padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
                     }
@@ -31,10 +52,12 @@ struct SettingsView: View {
                     else { usageSettings }
                 }.padding(28)
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(SettingsPalette.surface)
         }
         .frame(minWidth: 820, idealWidth: 850, minHeight: 650, idealHeight: 720)
-        .tint(accent)
+        .groupBoxStyle(SettingsGroupStyle())
+        .foregroundStyle(SettingsPalette.onSurface)
+        .tint(SettingsPalette.primary)
         .id(model.language)
         .environment(\.locale, Locale(identifier: model.language.code))
         .onDisappear { model.cancelLearning() }
@@ -47,64 +70,115 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+            VStack(spacing: 4) {
                 Image(nsImage: BrandImages.logo)
                     .resizable().renderingMode(.template).interpolation(.high).scaledToFit()
                     .foregroundStyle(.primary)
                     .frame(width: 36, height: 36).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Mus").font(.headline)
-                    Text(L10n.text("轻一点，刚刚好。")).font(.caption).foregroundStyle(.secondary)
-                }
-            }.padding(.bottom, 30).padding(.top, 12)
-            navItem(L10n.text("鼠标设置"), icon: "slider.horizontal.3", index: 0)
-            navItem(L10n.text("使用与权限"), icon: "checkmark.shield", index: 1)
-            Spacer()
-            Button(action: onHide) {
-                Label(L10n.text("收起到状态栏"), systemImage: "menubar.arrow.up.rectangle")
-                    .font(.callout).frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain).padding(.bottom, 8)
-                .help(L10n.text("关闭设置窗口，Mus 继续在屏幕顶部状态栏运行"))
-            Label(L10n.text("本机运行 · 无需账户"), systemImage: "lock.shield").font(.caption).foregroundStyle(.secondary)
-            Text(L10n.text("v0.1.0 · macOS 原生应用")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 3)
-        }.padding(20).frame(width: 172)
-            .frame(maxHeight: .infinity).background(.thinMaterial)
+                Text("Mus").font(.headline)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 16).padding(.top, 4)
+            navItem(L10n.text("鼠标设置"), icon: .tune, index: 0)
+            navItem(L10n.text("使用与权限"), icon: .permissions, index: 1)
+            sidebarDevices
+                .padding(.top, 12)
+            Text(verbatim: "v" + AppResources.version)
+                .font(.caption2).foregroundStyle(SettingsPalette.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 3)
+        }.padding(16).frame(width: 198)
+            .frame(maxHeight: .infinity).background(SettingsPalette.surfaceContainer)
     }
 
-    private func navItem(_ title: String, icon: String, index: Int) -> some View {
+    private var sidebarDevices: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                if model.mice.isEmpty {
+                    MaterialSymbol.mouse.label(L10n.text("未检测到鼠标"))
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                ForEach(model.mice) { mouse in
+                    VStack(spacing: 8) {
+                        if mouse.isMXAnywhere3S {
+                            MouseProductImage(learningRear: model.learningRear, highlightColor: Color(red: 0.34, green: 0.33, blue: 0.64))
+                                .padding(8)
+                                .background(Color(white: 0.96), in: RoundedRectangle(cornerRadius: 18))
+                                .accessibilityHidden(true)
+                        } else {
+                            MaterialSymbol.mouse.icon(42)
+                                .foregroundStyle(.secondary).accessibilityHidden(true)
+                        }
+                        Text(mouse.title).font(.headline)
+                        Text("\(mouse.brand) · \(mouse.connection)")
+                            .font(.caption).foregroundStyle(.secondary)
+                        MaterialSymbol.connected.label(L10n.text(mouse.isReceiver ? "已检测到接收器" : "已连接"), size: 14)
+                            .font(.caption.weight(.semibold)).foregroundStyle(SettingsPalette.onPrimaryContainer)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(SettingsPalette.primaryContainer, in: Capsule())
+                        if mouse.isReceiver {
+                            Text(L10n.text("接收器未提供所连接鼠标的具体型号。"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(10).frame(maxWidth: .infinity)
+                    .settingsCard()
+                }
+                Toggle(L10n.text("侧键与滚轮"), isOn: $model.settings.enabled)
+                    .toggleStyle(.switch).controlSize(.small).font(.callout)
+                    .fixedSize()
+                    .help(L10n.text("暂停后恢复系统鼠标行为"))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private func navItem(_ title: String, icon: MaterialSymbol, index: Int) -> some View {
         Button { page = index } label: {
-            Label(title, systemImage: icon).font(.system(size: 13, weight: .medium))
+            icon.label(title, size: 20).font(.system(size: 13, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                .background(page == index ? accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(page == index ? accent : .primary)
+                .background(page == index ? SettingsPalette.primaryContainer : .clear, in: Capsule())
+                .foregroundStyle(page == index ? SettingsPalette.onPrimaryContainer : SettingsPalette.onSurfaceVariant)
         }.buttonStyle(.plain)
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(page == 0 ? L10n.text("让鼠标顺手起来。") : L10n.text("简单设置，安心常驻。"))
-                    .font(.system(size: 25, weight: .semibold))
-                Text(page == 0 ? L10n.text("专注侧键与滚动，设置即时生效。") : L10n.text("只请求实现鼠标操作所需的权限。"))
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle(L10n.text("启用"), isOn: $model.settings.enabled).toggleStyle(.switch).labelsHidden()
-                .accessibilityLabel(L10n.text("启用鼠标设置")).help(L10n.text("暂停后恢复系统鼠标行为"))
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text(page == 0 ? "鼠标设置" : "使用与权限"))
+                .font(.system(size: 28, weight: .medium))
+            Label(L10n.format("事件监听：%@", model.status), systemImage: model.running && model.settings.enabled ? "circle.fill" : "circle")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
     private var permissionBanner: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(L10n.text("还差一步：允许辅助功能权限"), systemImage: "hand.raised.fill").font(.headline)
-            Text(L10n.text("用于改写鼠标侧键和滚轮事件。打开系统设置，启用 Mus，再回到这里。"))
-                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button(L10n.text("打开权限设置")) { model.openPermissionSettings() }.buttonStyle(.borderedProminent)
-                Button(L10n.text("我已开启，重新检查")) { model.refresh() }
+        HStack(alignment: .center, spacing: 14) {
+            MaterialSymbol.hand.icon(24)
+                .foregroundStyle(SettingsPalette.primary)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.text(model.waitingForPermission ? "等待辅助功能权限" : "还差一步：允许辅助功能权限"))
+                    .font(.headline)
+                Text(L10n.text(model.waitingForPermission
+                    ? "在辅助功能列表中开启 Mus。如果列表中没有 Mus，点“+”添加。授权后会自动开始监听。"
+                    : "允许 Mus 使用辅助功能，以调整鼠标侧键和滚动。"))
+                    .font(.callout).foregroundStyle(SettingsPalette.onSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            Spacer(minLength: 0)
+            Button {
+                model.openPermissionSettings()
+            } label: {
+                Text(L10n.text(model.waitingForPermission ? "返回权限设置" : "打开权限设置"))
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .foregroundStyle(SettingsPalette.onPrimary)
+                    .background(SettingsPalette.primary, in: Capsule())
+            }.buttonStyle(.plain).fixedSize()
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+        .background(SettingsPalette.secondaryContainer, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var restartBanner: some View {
@@ -117,63 +191,49 @@ struct SettingsView: View {
 
     private var mouseSettings: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text(L10n.text("已检测的鼠标")).font(.headline)
-                    Spacer()
-                    Button(L10n.text("重新检测")) { model.refresh() }
-                }
-                if model.mice.isEmpty {
-                    Label(L10n.text("未检测到鼠标"), systemImage: "computermouse")
-                        .foregroundStyle(.secondary)
-                    Text(L10n.text("请连接鼠标后重新检测。接收器可能无法提供具体型号。"))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                ForEach(model.mice) { mouse in
-                    HStack(spacing: 24) {
-                        if mouse.isMXAnywhere3S {
-                            MouseProductImage(learningRear: model.learningRear, highlightColor: accent)
-                                .accessibilityHidden(true)
-                        } else {
-                            Image(systemName: "computermouse")
-                                .font(.system(size: 58, weight: .ultraLight))
-                                .frame(width: 120, height: 155).foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                        }
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(mouse.title).font(.title3.weight(.semibold))
-                            Text("\(mouse.brand) · \(mouse.connection)").font(.caption).foregroundStyle(.secondary)
-                            Label(L10n.text(mouse.isReceiver ? "已检测到接收器" : "已连接"), systemImage: "checkmark.circle.fill")
-                                .font(.caption.weight(.medium)).foregroundStyle(accent)
-                            if mouse.isReceiver {
-                                Text(L10n.text("接收器未提供所连接鼠标的具体型号。"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                    }
-                }
-                Label(L10n.format("事件监听：%@", model.status), systemImage: model.running && model.settings.enabled ? "circle.fill" : "circle")
-                    .font(.caption.weight(.medium)).foregroundStyle(model.running && model.settings.enabled ? accent : .secondary)
-                if let rear = model.learningRear {
-                    Label(L10n.text(rear ? "请按下后侧键；图中高亮为位置示意。" : "请按下前侧键；图中高亮为位置示意。"), systemImage: "hand.point.up.left.fill")
-                        .font(.caption.weight(.semibold)).foregroundStyle(accent)
-                }
-            }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+            HStack(spacing: 0) {
+                tabButton(.sideButtons, title: L10n.text("侧键"))
+                tabButton(.scroll, title: L10n.text("滚轮调节"))
+                Spacer(minLength: 0)
+            }
+            .background(alignment: .bottom) { Divider() }
+            .onChange(of: mouseTab) { _, _ in model.cancelLearning() }
+
+            switch mouseTab {
+            case .sideButtons: sideButtonSettings
+            case .scroll: scrollSettings
+            }
 
             Text(L10n.text("作用范围：所有鼠标的对应侧键与普通滚轮。触控板连续滚动保持不变。"))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
-            sectionTitle(L10n.text("侧键"), detail: L10n.text("把常用操作放在拇指旁"))
-            VStack(spacing: 0) {
-                buttonRow(title: L10n.text("前侧键"), detail: L10n.text("靠近鼠标头部的一颗"), rear: false, binding: $model.settings.front)
-                Divider().padding(.horizontal, 16)
-                buttonRow(title: L10n.text("后侧键"), detail: L10n.text("靠近手腕的一颗"), rear: true, binding: $model.settings.rear)
-            }.background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+    private func tabButton(_ tab: MouseSettingsTab, title: String) -> some View {
+        let selected = mouseTab == tab
+        return Button { mouseTab = tab } label: {
+            Text(title).font(.system(size: 14, weight: selected ? .semibold : .medium))
+                .foregroundStyle(selected ? SettingsPalette.primary : SettingsPalette.onSurfaceVariant)
+                .padding(.vertical, 12).padding(.horizontal, 22)
+                .overlay(alignment: .bottom) {
+                    Capsule().fill(selected ? SettingsPalette.primary : Color.clear)
+                        .frame(height: 3).padding(.horizontal, 14)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var sideButtonSettings: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 12) {
+                buttonCard(title: L10n.text("前侧键"), detail: L10n.text("靠近鼠标头部的一颗"), rear: false, binding: $model.settings.front)
+                buttonCard(title: L10n.text("后侧键"), detail: L10n.text("靠近手腕的一颗"), rear: true, binding: $model.settings.rear)
+            }
             if let rear = model.learningRear {
                 HStack {
-                    Text(L10n.text(rear ? L10n.text("现在按一下后侧键（12 秒内）…") : L10n.text("现在按一下前侧键（12 秒内）…"))).font(.callout).foregroundStyle(accent)
+                    Text(L10n.text(rear ? "现在按一下后侧键（12 秒内）…" : "现在按一下前侧键（12 秒内）…")).font(.callout).foregroundStyle(SettingsPalette.primary)
                     Spacer()
                     Button(L10n.text("取消")) { model.cancelLearning() }
                 }
@@ -181,7 +241,11 @@ struct SettingsView: View {
                 Text(model.lastButton)
                     .font(.caption).foregroundStyle(.secondary)
             }
-            sectionTitle(L10n.text("滚轮调节"), detail: L10n.text("按你的手感调整"))
+        }
+    }
+
+    private var scrollSettings: some View {
+        VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 14) {
                 Toggle(L10n.text("自定义滚动"), isOn: $model.settings.scroll.enabled)
                 Text(L10n.text("调低速度和步长可精细滚动，开启平滑可减少跳动。"))
@@ -201,14 +265,14 @@ struct SettingsView: View {
                     Button(L10n.text("恢复滚轮默认值")) { model.settings.scroll = ScrollSettings() }
                 }
             }.toggleStyle(.switch).padding(16)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+                .settingsCard()
             sectionTitle(L10n.text("滚动方向"), detail: L10n.text("以 macOS 当前方向为基准"))
             VStack(alignment: .leading, spacing: 14) {
                 Toggle(L10n.text("反转纵向滚动"), isOn: $model.settings.reverseVertical)
                 Divider()
                 Toggle(L10n.text("反转横向滚动"), isOn: $model.settings.reverseHorizontal)
             }.toggleStyle(.switch).padding(16)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+                .settingsCard()
             Text(L10n.text("仅调节普通鼠标滚轮，触控板与 Magic Mouse 连续滚动保持原样。请避免同时启用其他软件的平滑滚动。"))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
@@ -220,7 +284,7 @@ struct SettingsView: View {
             HStack {
                 Text(L10n.text(title)).font(.callout)
                 Spacer()
-                Text(display).font(.callout.monospacedDigit()).foregroundStyle(accent)
+                Text(display).font(.callout.monospacedDigit()).foregroundStyle(SettingsPalette.primary)
             }
             Slider(value: value, in: range, step: step).accessibilityLabel(L10n.text(title))
             HStack {
@@ -238,30 +302,35 @@ struct SettingsView: View {
         }
     }
 
-    private func buttonRow(title: String, detail: String, rear: Bool, binding: Binding<ButtonBinding>) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Image(systemName: rear ? "arrow.uturn.backward" : "arrow.uturn.forward")
-                    .font(.title3).foregroundStyle(accent).frame(width: 28)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 13, weight: .medium))
-                    Text(detail).font(.caption2).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Picker(title, selection: binding.action) {
-                    ForEach(ButtonAction.allCases) { action in Text(L10n.text(action.title)).tag(action) }
-                }.labelsHidden().frame(width: 185).accessibilityLabel(L10n.format("%@操作", title))
-                Button(L10n.text(model.learningRear == rear ? "识别中…" : "识别")) { model.learn(rear: rear) }.disabled(!model.running)
+    private func buttonCard(title: String, detail: String, rear: Bool, binding: Binding<ButtonBinding>) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                (rear ? MaterialSymbol.undo : .redo).icon(21)
+                    .font(.headline).foregroundStyle(SettingsPalette.primary).frame(width: 36, height: 36)
+                    .background(SettingsPalette.primaryContainer, in: Circle())
+                    .accessibilityHidden(true)
+                Spacer()
+                Button(L10n.text(model.learningRear == rear ? "识别中…" : "识别")) { model.learn(rear: rear) }
+                    .disabled(!model.running).controlSize(.small)
                     .help(L10n.text("按下对应侧键，识别实际按键编号"))
             }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.title3.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Picker(title, selection: binding.action) {
+                ForEach(ButtonAction.allCases) { action in Text(L10n.text(action.title)).tag(action) }
+            }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel(L10n.format("%@操作", title))
             if binding.wrappedValue.action == .custom {
                 ShortcutRecorder(shortcut: binding.custom).frame(height: 28)
                 if binding.wrappedValue.custom == nil {
                     Text(L10n.text("录制前保持原始侧键行为。")).font(.caption).foregroundStyle(.secondary)
                 }
             }
-        }.padding(16)
-            .background(model.learningRear == rear ? accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            .settingsCard()
+            .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(model.learningRear == rear ? SettingsPalette.primary : .clear, lineWidth: 2).allowsHitTesting(false) }
     }
 
     private var usageSettings: some View {
@@ -288,7 +357,12 @@ struct SettingsView: View {
             GroupBox(L10n.text("首次使用")) {
                 VStack(alignment: .leading, spacing: 14) {
                     instruction("1", L10n.text("保持鼠标连接"), L10n.text("蓝牙或 Bolt 接收器均可，不需要重新配对。"))
-                    instruction("2", L10n.text("允许辅助功能权限"), L10n.text("系统设置 → 隐私与安全性 → 辅助功能 → Mus。"))
+                    if model.hasPermission {
+                        MaterialSymbol.connected.label(L10n.text("辅助功能权限已开启"))
+                            .font(.callout).foregroundStyle(SettingsPalette.primary)
+                    } else {
+                        instruction("2", L10n.text("允许辅助功能权限"), L10n.text("系统设置 → 隐私与安全性 → 辅助功能 → Mus。"))
+                    }
                     instruction("3", L10n.text("避免重复映射"), L10n.text("先退出 Options+、Mos 等工具的鼠标映射／滚动处理，再测试侧键和滚轮。"))
                     instruction("4", L10n.text("测试并选择操作"), L10n.text("在浏览器中测试前进和后退；在页面上滚动，确认方向。系统快捷键以你在 macOS 中的配置为准。"))
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
@@ -299,7 +373,6 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
-                Button(L10n.text("重新检查权限")) { model.refresh() }
                 Button(L10n.text("复制诊断信息")) { model.copyDiagnostics() }
                 Spacer()
                 Button(L10n.text("恢复默认…")) { showReset = true }
@@ -309,8 +382,8 @@ struct SettingsView: View {
 
     private func instruction(_ number: String, _ title: String, _ detail: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(number).font(.caption.bold()).foregroundStyle(accent).frame(width: 24, height: 24)
-                .background(accent.opacity(0.1), in: Circle())
+            Text(number).font(.caption.bold()).foregroundStyle(SettingsPalette.primary).frame(width: 24, height: 24)
+                .background(SettingsPalette.primaryContainer, in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.callout.weight(.medium))
                 Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

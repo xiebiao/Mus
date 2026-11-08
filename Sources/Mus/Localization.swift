@@ -1,6 +1,8 @@
 import Foundation
 
 enum AppResources {
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.1"
+
     static let bundle: Bundle = {
         if let url = Bundle.main.url(forResource: "Mus_Mus", withExtension: "bundle"),
            let bundle = Bundle(url: url) { return bundle }

@@ -25,7 +25,8 @@ final class AppModel {
     }
     var mice: [MouseDevice] = []
     @ObservationIgnored private let deviceMonitor = MouseDeviceMonitor()
-    var hasPermission = false
+    private(set) var hasPermission = false
+    private(set) var waitingForPermission = false
     var running = false
     var loginEnabled = false
     var loginNeedsApproval = false
@@ -40,6 +41,8 @@ final class AppModel {
     @ObservationIgnored private let service = EventTapService()
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var learningTimer: Timer?
+
+    @ObservationIgnored private var permissionTimer: Timer?
 
     var status: String {
         if !hasPermission { return L10n.text("等待辅助功能权限") }
@@ -94,18 +97,49 @@ final class AppModel {
             if self?.mice != devices { self?.mice = devices }
         }
         deviceMonitor.start()
-        hasPermission = AXIsProcessTrusted()
-        if hasPermission { running = service.start() }
-        else { service.stop(); running = false; cancelLearning() }
+        updatePermission(AXIsProcessTrusted())
         loginEnabled = SMAppService.mainApp.status == .enabled
         loginNeedsApproval = SMAppService.mainApp.status == .requiresApproval
         onChange?()
     }
 
+    private func updatePermission(_ granted: Bool) {
+        hasPermission = granted
+        if granted {
+            stopPermissionChecks()
+            waitingForPermission = false
+            running = service.start()
+            return
+        }
+
+        service.stop()
+        running = false
+        cancelLearning()
+        guard permissionTimer == nil else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            if AXIsProcessTrusted() {
+                self.updatePermission(true)
+                self.onChange?()
+            }
+        }
+        timer.tolerance = 0.2
+        permissionTimer = timer
+    }
+
+    private func stopPermissionChecks() {
+        permissionTimer?.invalidate()
+        permissionTimer = nil
+    }
+
     func openPermissionSettings() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        if AXIsProcessTrusted() {
+            updatePermission(true)
+            onChange?()
+            return
+        }
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+        waitingForPermission = NSWorkspace.shared.open(url)
     }
 
     func setLogin(_ enabled: Bool) {
@@ -152,12 +186,12 @@ final class AppModel {
         notice = nil
     }
 
-    func suspend() { deviceMonitor.stop(); cancelLearning(); service.stop(); running = false; onChange?() }
+    func suspend() { stopPermissionChecks(); deviceMonitor.stop(); cancelLearning(); service.stop(); running = false; onChange?() }
     func resetSettings() { cancelLearning(); settings = MouseSettings(); notice = L10n.text("已恢复默认设置。") }
 
     func copyDiagnostics() {
         let report = """
-        Mus 0.1.0
+        Mus \(AppResources.version)
         macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
         Accessibility: \(hasPermission)
         Event tap: \(running)

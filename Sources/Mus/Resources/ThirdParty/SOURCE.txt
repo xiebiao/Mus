@@ -3,3 +3,7 @@ https://github.com/lucide-icons/lucide/blob/dab294f313897bacaa968b725b3259fa37c1
 License: ISC; see Lucide-LICENSE.txt
 Retrieved: 2026-10-14
 Mus adapts the SVG to an application icon: white strokes on a dark green rounded background.
+
+Material Symbols Rounded by Google
+https://github.com/google/material-design-icons/tree/master/symbols/web
+24 px SVGs, distributed under Apache License 2.0; see MaterialSymbols-LICENSE.txt.
